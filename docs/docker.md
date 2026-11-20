@@ -9,10 +9,13 @@ these requirements apply to its Linux VM.
 
 ## Build the stack image
 
-Run this from the repository root on the Docker endpoint that will run AX.
+To build stack release `docker-v0.1.0`, run these commands from the repository
+root on the Docker endpoint that will run AX.
 
 ```sh
-docker build -f deploy/docker/Dockerfile -t ax-local:dev .
+git switch --detach docker-v0.1.0
+docker build -f deploy/docker/Dockerfile -t ax-local:0.1.0 .
+docker run --rm --entrypoint ax ax-local:0.1.0 version
 ```
 
 The first start downloads Kind and kubectl, builds the AX server and runner

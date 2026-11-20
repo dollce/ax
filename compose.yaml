@@ -1,6 +1,6 @@
 services:
   ax:
-    image: ${AX_STACK_IMAGE:-ax-local:dev}
+    image: ${AX_STACK_IMAGE:-ax-local:0.1.0}
     privileged: true
     restart: unless-stopped
     stop_grace_period: 2m

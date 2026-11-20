@@ -12,19 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ARG STACK_VERSION=0.1.0
 FROM --platform=$BUILDPLATFORM golang:1.27.1 AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 ARG TARGETARCH
+ARG STACK_VERSION
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -trimpath \
+      -ldflags="-X github.com/google/ax/internal/version.Version=docker-v${STACK_VERSION}" \
       -o /out/ ./cmd/ax ./cmd/ax-server ./cmd/ax-task-runner
 
 FROM docker:29-dind
 ARG TARGETARCH
+ARG STACK_VERSION
+LABEL org.opencontainers.image.version=${STACK_VERSION}
 ENV PATH="/root/.ax/bin:${PATH}" DOCKER_HOST=unix:///var/run/docker.sock
 COPY --from=build /out/ax /usr/local/bin/
 COPY --from=build /out/ax-server /out/ax-task-runner /opt/ax/bin/linux_${TARGETARCH}/
