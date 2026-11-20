@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -99,6 +100,9 @@ func TestKindProviderUpCreatesCluster(t *testing.T) {
 		if strings.Contains(joined, "/dev/kvm") {
 			t.Fatalf("unexpected /dev/kvm command: %q", joined)
 		}
+		if strings.Contains(joined, "kind-registry") {
+			t.Fatalf("unexpected local registry setup: %q", joined)
+		}
 		if strings.Contains(joined, "net.ipv4.conf.all.proxy_arp=1") {
 			sawProxyARP = true
 		}
@@ -108,6 +112,60 @@ func TestKindProviderUpCreatesCluster(t *testing.T) {
 	}
 	if !sawProxyARP || !sawSetContext {
 		t.Fatalf("missing expected calls (proxyARP=%v, setContext=%v)", sawProxyARP, sawSetContext)
+	}
+}
+
+func TestConfigureLocalRegistry(t *testing.T) {
+	nodes := []string{"control-plane", "worker"}
+	for _, tc := range []struct {
+		name      string
+		running   string
+		network   string
+		wantError bool
+		connect   bool
+	}{
+		{name: "new registry", running: "true", connect: true},
+		{name: "already connected", running: "true", network: "connected"},
+		{name: "stopped", running: "false", wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var connected bool
+			var configured []string
+			rr := &recordedRunner{runFn: func(spec executil.Spec) (executil.Result, error) {
+				switch spec.Args[0] {
+				case "inspect":
+					if spec.Args[2] == "{{.State.Running}}" {
+						return executil.Result{Stdout: tc.running}, nil
+					}
+					return executil.Result{Stdout: tc.network}, nil
+				case "network":
+					if !slices.Equal(spec.Args, []string{"network", "connect", "kind", "kind-registry"}) {
+						t.Errorf("network command = %v", spec.Args)
+					}
+					connected = true
+				case "exec":
+					if !strings.Contains(spec.Args[4], "/etc/containerd/certs.d/localhost:5001") ||
+						!strings.Contains(spec.Args[4], `[host."http://kind-registry:5000"]`) {
+						t.Errorf("incorrect registry configuration: %v", spec.Args)
+					}
+					configured = append(configured, spec.Args[1])
+				default:
+					t.Errorf("unexpected runtime command: %v", spec.Args)
+				}
+				return executil.Result{}, nil
+			}}
+			p := NewKindProvider(rr, nil)
+			err := p.configureLocalRegistry(t.Context(), executil.ContainerRuntime{Binary: "docker"}, nodes)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("configureLocalRegistry() error = %v, want error %v", err, tc.wantError)
+			}
+			if connected != tc.connect {
+				t.Errorf("connected = %t, want %t", connected, tc.connect)
+			}
+			if tc.wantError && len(configured) != 0 || !tc.wantError && !slices.Equal(configured, nodes) {
+				t.Errorf("configured nodes = %v", configured)
+			}
+		})
 	}
 }
 

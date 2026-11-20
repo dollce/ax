@@ -1,0 +1,27 @@
+services:
+  ax:
+    image: ${AX_STACK_IMAGE:-ax-local:dev}
+    privileged: true
+    restart: unless-stopped
+    stop_grace_period: 2m
+    environment:
+      AX_SERVER: http://127.0.0.1:8080
+    ports:
+      - "127.0.0.1:${AX_PORT:-8080}:8080"
+    volumes:
+      - docker-data:/var/lib/docker
+      - kube-config:/root/.kube
+      - ax-tools:/root/.ax/bin
+    tmpfs:
+      - /root/.ax/tunnels
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      start_period: 15m
+      retries: 4
+
+volumes:
+  docker-data:
+  kube-config:
+  ax-tools:

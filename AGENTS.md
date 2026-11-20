@@ -23,6 +23,7 @@ cmd/ax                 CLI (apply/get/describe/ssh/suspend/resume/promote/delete
 cmd/ax-server          Control plane: gRPC API; provisions, suspends, resumes and deletes task actors directly
 cmd/ax-task-runner     PID 1 inside the sandbox; materializes the Workspace, runs the agent
 deploy/                Canonical postgres.yaml + ax-server.yaml manifests and //go:embed renderers
+deploy/docker/         Builds the private Docker engine and AX CLI used by compose.yaml. For Docker Compose or Portainer Standalone changes, test the stack using docs/docker.md.
 internal/apivalidation Manifest admission validation (common, task, workspace, model, gateway); server-side only
 internal/controller    TaskReconciler + WorkspaceManager: Substrate side of task lifecycle and workspace snapshot tags; reconciler_test.go is the test template
 internal/install/      Self-contained local cluster (Kind), Substrate bootstrap, and AX installer/uninstaller

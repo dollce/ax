@@ -155,6 +155,11 @@ func (p *KindProvider) Up(ctx context.Context, opts UpOptions) (Info, error) {
 	if err := p.configureNodes(ctx, rt, nodes); err != nil {
 		return Info{}, err
 	}
+	if opts.LocalRegistry {
+		if err := p.configureLocalRegistry(ctx, rt, nodes); err != nil {
+			return Info{}, err
+		}
+	}
 	p.warnIfNoEgress(ctx, rt, nodes)
 
 	return Info{
@@ -597,6 +602,52 @@ func (p *KindProvider) configureNodes(ctx context.Context, rt executil.Container
 			Name: rt.Binary,
 			Args: []string{"exec", node, "sysctl", "-w", "fs.inotify.max_user_instances=8192"},
 		})
+	}
+	return nil
+}
+
+// configureLocalRegistry makes the host's localhost:5001 image references work
+// inside Kind. Substrate's local installation rewrites the same references to
+// kind-registry:5000 when pulling task images.
+func (p *KindProvider) configureLocalRegistry(ctx context.Context, rt executil.ContainerRuntime, nodes []string) error {
+	const registry = "kind-registry"
+	running, err := p.containerRunning(ctx, rt, registry)
+	if err != nil {
+		return fmt.Errorf("checking local registry container %s: %w", registry, err)
+	}
+	if !running {
+		return fmt.Errorf("local registry container %s must be running", registry)
+	}
+	res, err := p.Runner.Run(ctx, executil.Spec{
+		Name: rt.Binary,
+		Args: []string{"inspect", "-f", `{{if index .NetworkSettings.Networks "kind"}}connected{{end}}`, registry},
+	})
+	if err != nil {
+		return fmt.Errorf("checking the local registry network: %w", err)
+	}
+	if strings.TrimSpace(res.Stdout) != "connected" {
+		if _, err := p.Runner.Run(ctx, executil.Spec{
+			Name: rt.Binary,
+			Args: []string{"network", "connect", "kind", registry},
+		}); err != nil {
+			return fmt.Errorf("connecting the local registry to the kind network: %w", err)
+		}
+	}
+
+	const writeHosts = `set -eu
+dir=/etc/containerd/certs.d/localhost:5001
+mkdir -p "$dir"
+file=$(mktemp "$dir/.hosts.XXXXXX")
+trap 'rm -f "$file"' EXIT
+echo '[host."http://kind-registry:5000"]' > "$file"
+mv "$file" "$dir/hosts.toml"`
+	for _, node := range nodes {
+		if _, err := p.Runner.Run(ctx, executil.Spec{
+			Name: rt.Binary,
+			Args: []string{"exec", node, "sh", "-c", writeHosts},
+		}); err != nil {
+			return fmt.Errorf("configuring the local registry on %s: %w", node, err)
+		}
 	}
 	return nil
 }

@@ -68,6 +68,9 @@ Everything is expressed as `ax.io/v1alpha1` manifests and applied with a single 
 
 ## Quick start
 
+To run the full local stack from a checkout using Docker Compose or Portainer,
+follow [Run AX with Docker and Portainer](docs/docker.md).
+
 ### 1. Install the CLI
 
 ```bash

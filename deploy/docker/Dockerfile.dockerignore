@@ -1,0 +1,12 @@
+# The manager only builds AX binaries and bundles their image recipes.
+**
+!go.mod
+!go.sum
+!client/**
+!cmd/**
+!deploy/**
+!internal/**
+!pkg/**
+!runner/**
+!Dockerfile.server
+!Dockerfile.task-runner

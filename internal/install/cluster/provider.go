@@ -39,6 +39,8 @@ const (
 type UpOptions struct {
 	Name      string
 	NodeImage string
+	// LocalRegistry connects the existing kind-registry container to the nodes.
+	LocalRegistry bool
 }
 
 // Info describes a provisioned local cluster.

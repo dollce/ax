@@ -30,7 +30,7 @@ import (
 
 func TestParseLocalArgs(t *testing.T) {
 	def, err := parseLocalArgs([]string{"start"})
-	if err != nil || def.subcmd != "start" || def.workers != 1 || def.name != cluster.DefaultName {
+	if err != nil || def.subcmd != "start" || def.workers != 1 || def.name != cluster.DefaultName || def.localRegistry {
 		t.Fatalf("expected default start flags, got %+v, %v", def, err)
 	}
 	if def.serverImage != axdeploy.DefaultServerImage || def.defaultTaskImage != axdeploy.DefaultTaskImage || def.runnerVolumeImage != axdeploy.DefaultRunnerVolumeImage {
@@ -41,6 +41,7 @@ func TestParseLocalArgs(t *testing.T) {
 		"start",
 		"--name", "dev",
 		"--workers", "2",
+		"--local-registry",
 		"--server-image", "ghcr.io/google/ax/ax-server:v0.1.0",
 		"--default-task-image", "ghcr.io/agentexecutor/antigravity:1.5.8",
 		"--runner-volume-image", "ghcr.io/google/ax/ax-runner-volume:v0.1.0",
@@ -48,7 +49,7 @@ func TestParseLocalArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseLocalArgs: %v", err)
 	}
-	if got.subcmd != "start" || got.name != "dev" || got.workers != 2 ||
+	if got.subcmd != "start" || got.name != "dev" || got.workers != 2 || !got.localRegistry ||
 		got.serverImage != "ghcr.io/google/ax/ax-server:v0.1.0" ||
 		got.defaultTaskImage != "ghcr.io/agentexecutor/antigravity:1.5.8" ||
 		got.runnerVolumeImage != "ghcr.io/google/ax/ax-runner-volume:v0.1.0" {
@@ -62,6 +63,9 @@ func TestParseLocalArgs(t *testing.T) {
 
 	if _, err := parseLocalArgs([]string{"start", "extra-arg"}); err == nil {
 		t.Fatal("expected error on extra positional argument")
+	}
+	if _, err := parseLocalArgs([]string{"status", "--local-registry"}); err == nil {
+		t.Fatal("expected --local-registry to require start")
 	}
 }
 

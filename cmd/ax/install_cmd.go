@@ -59,6 +59,7 @@ Subcommands:
 Flags:
   --name string                Local cluster name (default: %q)
   --workers int                Number of gVisor worker replicas (default: 1)
+  --local-registry             On start, use the running kind-registry container for localhost:5001 images
   --server-image string        ax-server image reference, tag or @sha256 %s
   --default-task-image string  Default task image when spec.profile.image is unset %s
   --runner-volume-image string Runner volume image mounted into tasks; empty runs each image's own runner %s
@@ -116,11 +117,12 @@ func (f *imageFlags) register(fs *flag.FlagSet) {
 
 type localFlags struct {
 	imageFlags
-	subcmd  string
-	name    string
-	workers int
-	output  string
-	help    bool
+	localRegistry bool
+	subcmd        string
+	name          string
+	workers       int
+	output        string
+	help          bool
 }
 
 func parseLocalArgs(args []string) (localFlags, error) {
@@ -138,6 +140,9 @@ func parseLocalArgs(args []string) (localFlags, error) {
 	out := localFlags{subcmd: subcmd}
 	fs.StringVar(&out.name, "name", cluster.DefaultName, "local cluster name")
 	fs.IntVar(&out.workers, "workers", 1, "worker replicas")
+	if subcmd == "start" {
+		fs.BoolVar(&out.localRegistry, "local-registry", false, "connect the running kind-registry container for localhost:5001 images")
+	}
 	out.register(fs)
 	fs.StringVar(&out.output, "o", "", "output format of status: json")
 	fs.StringVar(&out.output, "output", "", "output format of status: json")
@@ -185,7 +190,8 @@ func runLocal(axNamespace string, args []string) error {
 		}
 		// Step 1: Provision or resume the local Kind cluster and select its kubeconfig context.
 		info, err := provider.Up(ctx, cluster.UpOptions{
-			Name: parsed.name,
+			Name:          parsed.name,
+			LocalRegistry: parsed.localRegistry,
 		})
 		if err != nil {
 			return err

@@ -1,0 +1,6 @@
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: hello
+spec:
+  commands: ["/bin/echo", "hello from AX"]
